@@ -1,12 +1,12 @@
 import SwiftUI
+import LiveKit
 
 struct CallView: View {
     @ObservedObject var model: CallModel
     @State private var focused: String?
-    private let pickerBox = PickerBox()
 
     private var screens: [CallModel.Peer] {
-        model.peers.filter { $0.kind != .none }
+        model.peers.filter { $0.screen != nil }
     }
 
     var body: some View {
@@ -19,12 +19,6 @@ struct CallView: View {
                 peersBar
                 controls
             }
-
-            // نافذة اختيار البث حق النظام (مخفية، نضغطها برمجياً)
-            BroadcastPicker(box: pickerBox)
-                .frame(width: 44, height: 44)
-                .opacity(0.011)
-                .allowsHitTesting(false)
         }
     }
 
@@ -94,9 +88,11 @@ struct CallView: View {
 
     private func tile(_ p: CallModel.Peer) -> some View {
         ZStack(alignment: .bottomLeading) {
-            RemoteVideoView(userId: p.id, isSub: p.kind == .sub)
-                .id("\(p.id)-\(p.kind == .sub)")
-            Text(p.id)
+            if let t = p.screen {
+                SwiftUIVideoView(t, layoutMode: .fit)
+                    .id(p.screenKey)
+            }
+            Text(p.name)
                 .font(.caption.bold())
                 .padding(.horizontal, 10).padding(.vertical, 5)
                 .background(Color.black.opacity(0.55))
@@ -113,11 +109,11 @@ struct CallView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 14) {
                 avatar("أنت", id: nil, highlight: model.sharing,
-                       speaking: model.speaking.contains("__me") && !model.muted,
+                       speaking: model.meSpeaking,
                        muted: model.muted)
                 ForEach(model.peers) { p in
-                    avatar(p.id, id: p.id, highlight: p.kind != .none,
-                           speaking: model.speaking.contains(p.id) && !model.mutedPeers.contains(p.id),
+                    avatar(p.name, id: p.id, highlight: p.screen != nil,
+                           speaking: p.speaking && !model.mutedPeers.contains(p.id),
                            muted: model.mutedPeers.contains(p.id))
                 }
             }
@@ -191,7 +187,7 @@ struct CallView: View {
                 }
 
                 Button {
-                    if model.sharing { model.stopShare() } else { model.startShare(picker: pickerBox) }
+                    if model.sharing { model.stopShare() } else { model.startShare() }
                 } label: {
                     HStack {
                         Image(systemName: model.sharing ? "stop.fill" : "rectangle.on.rectangle")
@@ -202,19 +198,6 @@ struct CallView: View {
                     .background(model.sharing ? Color.red : Color.accentColor)
                     .foregroundColor(.white)
                     .clipShape(Capsule())
-                }
-
-                Menu {
-                    Button("720p سلس (30 إطار)") { model.quality = 0 }
-                    Button("1080p أقصى جودة (30 إطار)") { model.quality = 1 }
-                    Button("1080p نص واضح (15 إطار)") { model.quality = 2 }
-                } label: {
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.title3)
-                        .frame(width: 50, height: 50)
-                        .background(Color.white.opacity(0.18))
-                        .foregroundColor(.white)
-                        .clipShape(Circle())
                 }
 
                 roundButton("phone.down.fill", color: .red) {
