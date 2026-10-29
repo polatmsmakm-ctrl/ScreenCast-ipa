@@ -74,6 +74,12 @@ targets:
       - package: TRTC
         product: TRTCReplayKitExt
       - sdk: ReplayKit.framework
+      - sdk: VideoToolbox.framework
+      - sdk: Accelerate.framework
+      - sdk: CoreMedia.framework
+      - sdk: CoreVideo.framework
+      - sdk: AVFoundation.framework
+      - sdk: libc++.tbd
 schemes:
   ScreenCast:
     build:
