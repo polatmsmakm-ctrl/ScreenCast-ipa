@@ -18,7 +18,6 @@
 }
 
 - (void)broadcastFinished {
-    [[TXReplayKitExt sharedInstance] finishBroadcast];
 }
 
 #pragma mark - TXReplayKitExtDelegate
