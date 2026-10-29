@@ -21,15 +21,17 @@ jobs:
         run: xcodebuild -resolvePackageDependencies -project ScreenCast.xcodeproj -scheme ScreenCast
 
       - name: Inspect SDK headers
-        if: always()
         run: |
-          for f in $(find "$PWD" "$HOME/Library/Developer/Xcode/DerivedData" -name "TRTCCloudDef.h" -o -name "TXReplayKitExt.h" -o -name "TRTCCloud.h" -o -name "TRTCCloud+*.h" 2>/dev/null | sort -u); do echo "=== $f"; done
-          R="$PWD $HOME/Library/Developer/Xcode/DerivedData"
-          H=$(find $R -name "TRTCCloudDef.h" 2>/dev/null | head -1)
-          D=$(dirname "$H")
-          echo "### resolution enum"; grep -n "TRTCVideoResolution_" "$H" | head -60
-          echo "### replaykit ext"; cat "$(find $R -name TXReplayKitExt.h 2>/dev/null | head -1)" | grep -n -E "^-|^\+|@property|typedef|NS_ENUM|TXReplayKitExtReason" 
-          echo "### audio/volume/route"; grep -rn -E "enableAudioVolumeEvaluation|onUserVoiceVolume|setAudioRoute|muteRemoteAudio|muteAllRemoteAudio|startScreenCaptureByReplaykit|sendAudio|SystemAudio|setSystemVolumeType|startSystemAudio" "$D" | head -40
+          R="$HOME/Library/Developer/Xcode/DerivedData"
+          E=$(find $R -name TXReplayKitExt.h | head -1)
+          echo "### EXT"; sed -n 28,100p "$E"
+          T=$(find $R -path "*ios-arm64_armv7*" -name TRTCCloud.h | head -1)
+          echo "### SYSAUDIO"; sed -n 950,980p "$T"
+          D=$(dirname "$T")
+          echo "### ROUTE"; grep -n -B1 -A6 "TRTCAudioRoute" "$D/TRTCCloudDef.h" | head -30
+          echo "### VOLPARAM"; grep -n -A12 "interface TRTCAudioVolumeEvaluateParams" "$D/TRTCCloudDef.h"
+          echo "### VOLCB"; grep -n -B1 -A1 "onUserVoiceVolume" "$D/TRTCCloudDelegate.h"
+          echo "### SCREEN"; grep -n -E "startScreenCapture|stopScreenCapture" "$T"
 
       - name: Build (unsigned)
         run: |
