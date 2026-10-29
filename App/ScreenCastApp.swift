@@ -11,6 +11,7 @@ struct ScreenCastApp: App {
 
 struct RootView: View {
     @StateObject private var model = CallModel()
+    @StateObject private var groups = GroupStore()
     @State private var showSettings = false
 
     var body: some View {
@@ -18,7 +19,7 @@ struct RootView: View {
             if model.inRoom {
                 CallView(model: model)
             } else {
-                JoinView(model: model, showSettings: $showSettings)
+                HomeView(model: model, groups: groups, showSettings: $showSettings)
             }
         }
         .environment(\.layoutDirection, .rightToLeft)

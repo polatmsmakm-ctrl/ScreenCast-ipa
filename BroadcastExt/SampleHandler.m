@@ -12,12 +12,15 @@
 }
 
 - (void)broadcastPaused {
+    [[TXReplayKitExt sharedInstance] broadcastPaused];
 }
 
 - (void)broadcastResumed {
+    [[TXReplayKitExt sharedInstance] broadcastResumed];
 }
 
 - (void)broadcastFinished {
+    [[TXReplayKitExt sharedInstance] broadcastFinished];
 }
 
 #pragma mark - TXReplayKitExtDelegate
@@ -44,9 +47,10 @@
 - (void)processSampleBuffer:(CMSampleBufferRef)sampleBuffer withType:(RPSampleBufferType)sampleBufferType {
     switch (sampleBufferType) {
         case RPSampleBufferTypeVideo:
-            [[TXReplayKitExt sharedInstance] sendVideoSampleBuffer:sampleBuffer];
+        case RPSampleBufferTypeAudioApp:   // صوت الايباد (الفيديوهات، الألعاب...)
+            [[TXReplayKitExt sharedInstance] sendSampleBuffer:sampleBuffer withType:sampleBufferType];
             break;
-        default:
+        default:   // المايك يلتقطه التطبيق الرئيسي
             break;
     }
 }

@@ -17,6 +17,11 @@ final class CallModel: ObservableObject {
     @Published var error: String?
     @Published var room = ""
     @Published var quality = 1
+    @Published var roomTitle = ""
+    @Published var speaking: Set<String> = []
+    @Published var mutedPeers: Set<String> = []
+    @Published var speakerOn = true
+    @Published var screenSound = true
 
     private let engine = CallEngine.shared
 
@@ -47,6 +52,11 @@ final class CallModel: ObservableObject {
                 self.peers[i].kind = .none
             }
         }
+        engine.onVolume = { [weak self] volumes in
+            var s = Set<String>()
+            for (k, v) in volumes where v.intValue > 10 { s.insert(k) }
+            self?.speaking = s
+        }
         engine.onScreenState = { [weak self] on in self?.sharing = on }
         engine.onError = { [weak self] msg in self?.error = msg }
     }
@@ -57,7 +67,7 @@ final class CallModel: ObservableObject {
         }
     }
 
-    func join(name: String, room: String) {
+    func join(name: String, room: String, title: String = "") {
         let d = UserDefaults.standard
         let appIdText = (d.string(forKey: "sdkAppId") ?? "").trimmingCharacters(in: .whitespaces)
         let key = (d.string(forKey: "secretKey") ?? "").trimmingCharacters(in: .whitespaces)
@@ -68,10 +78,15 @@ final class CallModel: ObservableObject {
         let n = name.trimmingCharacters(in: .whitespaces)
         let r = room.trimmingCharacters(in: .whitespaces)
         guard !n.isEmpty, !r.isEmpty else {
-            error = "اكتب اسمك واسم الغرفة."
+            error = "اكتب اسمك أول."
             return
         }
         self.room = r
+        self.roomTitle = title.isEmpty ? r : title
+        mutedPeers = []
+        speaking = []
+        speakerOn = true
+        screenSound = true
         connecting = true
         peers = []
         muted = false
@@ -91,6 +106,26 @@ final class CallModel: ObservableObject {
     func toggleMute() {
         muted.toggle()
         engine.setMuted(muted)
+    }
+
+    func toggleSpeaker() {
+        speakerOn.toggle()
+        engine.setSpeaker(speakerOn)
+    }
+
+    func toggleScreenSound() {
+        screenSound.toggle()
+        engine.setScreenSoundMuted(!screenSound)
+    }
+
+    func togglePeerMute(_ id: String) {
+        if mutedPeers.contains(id) {
+            mutedPeers.remove(id)
+            engine.muteRemote(id, mute: false)
+        } else {
+            mutedPeers.insert(id)
+            engine.muteRemote(id, mute: true)
+        }
     }
 
     func startShare(picker: PickerBox) {

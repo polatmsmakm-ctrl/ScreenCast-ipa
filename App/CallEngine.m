@@ -76,7 +76,13 @@ static NSString *GenUserSig(uint32_t sdkAppId, NSString *secretKey, NSString *us
     p.strRoomId = room;
     p.role = TRTCRoleAnchor;
     [self.cloud enterRoom:p appScene:TRTCAppSceneVideoCall];
+
+    TRTCAudioVolumeEvaluateParams *vp = [TRTCAudioVolumeEvaluateParams new];
+    vp.interval = 300;
+    [self.cloud enableAudioVolumeEvaluation:YES withParams:vp];
+
     [self.cloud startLocalAudio:TRTCAudioQualitySpeech];
+    [self.cloud setAudioRoute:TRTCAudioModeSpeakerphone];
 }
 
 - (void)exitRoom {
@@ -87,6 +93,18 @@ static NSString *GenUserSig(uint32_t sdkAppId, NSString *secretKey, NSString *us
 
 - (void)setMuted:(BOOL)muted {
     [self.cloud muteLocalAudio:muted];
+}
+
+- (void)setSpeaker:(BOOL)speaker {
+    [self.cloud setAudioRoute:speaker ? TRTCAudioModeSpeakerphone : TRTCAudioModeEarpiece];
+}
+
+- (void)muteRemote:(NSString *)userId mute:(BOOL)mute {
+    [self.cloud muteRemoteAudio:userId mute:mute];
+}
+
+- (void)setScreenSoundMuted:(BOOL)muted {
+    [self.cloud setSystemAudioLoopbackVolume:muted ? 0 : 100];
 }
 
 #pragma mark - Screen share
@@ -112,7 +130,7 @@ static NSString *GenUserSig(uint32_t sdkAppId, NSString *secretKey, NSString *us
     }
     enc.enableAdjustRes = NO;
     // appGroup = nil لأن الحساب المجاني ما يدعم App Groups
-    [self.cloud startScreenCaptureByReplaykit:enc appGroup:nil];
+    [self.cloud startScreenCaptureByReplaykit:TRTCVideoStreamTypeSub encParam:enc appGroup:nil];
 }
 
 - (void)stopScreenShare {
@@ -154,6 +172,15 @@ static NSString *GenUserSig(uint32_t sdkAppId, NSString *secretKey, NSString *us
 
 - (void)onUserSubStreamAvailable:(NSString *)userId available:(BOOL)available {
     dispatch_async(dispatch_get_main_queue(), ^{ if (self.onVideo) self.onVideo(userId, YES, available); });
+}
+
+- (void)onUserVoiceVolume:(NSArray<TRTCVolumeInfo *> *)userVolumes totalVolume:(NSInteger)totalVolume {
+    NSMutableDictionary<NSString *, NSNumber *> *d = [NSMutableDictionary dictionary];
+    for (TRTCVolumeInfo *v in userVolumes) {
+        NSString *key = v.userId.length > 0 ? v.userId : @"__me";
+        d[key] = @(v.volume);
+    }
+    dispatch_async(dispatch_get_main_queue(), ^{ if (self.onVolume) self.onVolume(d); });
 }
 
 - (void)onScreenCaptureStarted {

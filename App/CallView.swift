@@ -33,7 +33,7 @@ struct CallView: View {
     private var topBar: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(model.room)
+                Text(model.roomTitle)
                     .font(.headline)
                     .foregroundColor(.white)
                 Text("\(model.peers.count + 1) في الغرفة")
@@ -111,74 +111,118 @@ struct CallView: View {
 
     private var peersBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
-                avatar("أنت", highlight: model.sharing)
+            HStack(spacing: 14) {
+                avatar("أنت", id: nil, highlight: model.sharing,
+                       speaking: model.speaking.contains("__me") && !model.muted,
+                       muted: model.muted)
                 ForEach(model.peers) { p in
-                    avatar(p.id, highlight: p.kind != .none)
+                    avatar(p.id, id: p.id, highlight: p.kind != .none,
+                           speaking: model.speaking.contains(p.id) && !model.mutedPeers.contains(p.id),
+                           muted: model.mutedPeers.contains(p.id))
                 }
             }
             .padding(.horizontal, 16)
         }
-        .frame(height: 64)
+        .frame(height: 72)
     }
 
-    private func avatar(_ name: String, highlight: Bool) -> some View {
-        VStack(spacing: 4) {
-            Text(String(name.prefix(1)).uppercased())
-                .font(.headline)
-                .frame(width: 38, height: 38)
-                .background(highlight ? Color.red : Color.white.opacity(0.15))
-                .foregroundColor(.white)
-                .clipShape(Circle())
-            Text(name)
-                .font(.system(size: 10))
-                .foregroundColor(.white.opacity(0.7))
-                .lineLimit(1)
-                .frame(maxWidth: 60)
+    private func avatar(_ name: String, id: String?, highlight: Bool, speaking: Bool, muted: Bool) -> some View {
+        Button {
+            if let id = id { model.togglePeerMute(id) }
+        } label: {
+            VStack(spacing: 4) {
+                ZStack(alignment: .bottomTrailing) {
+                    Text(String(name.prefix(1)).uppercased())
+                        .font(.headline)
+                        .frame(width: 40, height: 40)
+                        .background(highlight ? Color.red : Color.white.opacity(0.15))
+                        .foregroundColor(.white)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(Color.green, lineWidth: speaking ? 3 : 0))
+                    if muted {
+                        Image(systemName: "mic.slash.fill")
+                            .font(.system(size: 9))
+                            .padding(4)
+                            .background(Color.red)
+                            .foregroundColor(.white)
+                            .clipShape(Circle())
+                            .offset(x: 4, y: 2)
+                    }
+                }
+                Text(name)
+                    .font(.system(size: 10))
+                    .foregroundColor(.white.opacity(0.7))
+                    .lineLimit(1)
+                    .frame(maxWidth: 60)
+            }
         }
+        .buttonStyle(PlainButtonStyle())
     }
 
     // MARK: - Controls
 
     private var controls: some View {
-        HStack(spacing: 18) {
-            roundButton(model.muted ? "mic.slash.fill" : "mic.fill",
-                        color: model.muted ? .red : Color.white.opacity(0.18)) {
-                model.toggleMute()
-            }
-
-            Button {
-                if model.sharing { model.stopShare() } else { model.startShare(picker: pickerBox) }
-            } label: {
-                HStack {
-                    Image(systemName: model.sharing ? "stop.fill" : "rectangle.on.rectangle")
-                    Text(model.sharing ? "أوقف البث" : "ابدأ بث الشاشة")
-                        .font(.headline)
+        VStack(spacing: 12) {
+            if model.sharing {
+                HStack(spacing: 8) {
+                    Image(systemName: model.screenSound ? "speaker.wave.2.fill" : "speaker.slash.fill")
+                    Text(model.screenSound ? "صوت الايباد ينبث" : "صوت الايباد مكتوم")
+                        .font(.caption)
+                    Spacer()
+                    Button(model.screenSound ? "اكتمه" : "شغّله") { model.toggleScreenSound() }
+                        .font(.caption.bold())
                 }
-                .padding(.horizontal, 22).padding(.vertical, 14)
-                .background(model.sharing ? Color.red : Color.accentColor)
                 .foregroundColor(.white)
-                .clipShape(Capsule())
+                .padding(.horizontal, 14).padding(.vertical, 8)
+                .background(Color.white.opacity(0.12))
+                .cornerRadius(12)
+                .padding(.horizontal, 16)
             }
 
-            Menu {
-                Button("720p سلس (30 إطار)") { model.quality = 0 }
-                Button("1080p عالي (30 إطار)") { model.quality = 1 }
-                Button("1080p نص واضح (15 إطار)") { model.quality = 2 }
-            } label: {
-                Image(systemName: "slider.horizontal.3")
-                    .font(.title3)
-                    .frame(width: 50, height: 50)
-                    .background(Color.white.opacity(0.18))
+            HStack(spacing: 14) {
+                roundButton(model.muted ? "mic.slash.fill" : "mic.fill",
+                            color: model.muted ? .red : Color.white.opacity(0.18)) {
+                    model.toggleMute()
+                }
+
+                roundButton(model.speakerOn ? "speaker.wave.3.fill" : "phone.fill",
+                            color: Color.white.opacity(0.18)) {
+                    model.toggleSpeaker()
+                }
+
+                Button {
+                    if model.sharing { model.stopShare() } else { model.startShare(picker: pickerBox) }
+                } label: {
+                    HStack {
+                        Image(systemName: model.sharing ? "stop.fill" : "rectangle.on.rectangle")
+                        Text(model.sharing ? "أوقف البث" : "بث الشاشة")
+                            .font(.headline)
+                    }
+                    .padding(.horizontal, 20).padding(.vertical, 14)
+                    .background(model.sharing ? Color.red : Color.accentColor)
                     .foregroundColor(.white)
-                    .clipShape(Circle())
-            }
+                    .clipShape(Capsule())
+                }
 
-            roundButton("phone.down.fill", color: .red) {
-                model.leave()
+                Menu {
+                    Button("720p سلس (30 إطار)") { model.quality = 0 }
+                    Button("1080p أقصى جودة (30 إطار)") { model.quality = 1 }
+                    Button("1080p نص واضح (15 إطار)") { model.quality = 2 }
+                } label: {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.title3)
+                        .frame(width: 50, height: 50)
+                        .background(Color.white.opacity(0.18))
+                        .foregroundColor(.white)
+                        .clipShape(Circle())
+                }
+
+                roundButton("phone.down.fill", color: .red) {
+                    model.leave()
+                }
             }
         }
-        .padding(.vertical, 14)
+        .padding(.vertical, 12)
         .padding(.horizontal, 12)
     }
 

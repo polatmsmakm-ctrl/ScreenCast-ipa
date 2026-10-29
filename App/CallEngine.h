@@ -15,6 +15,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, copy, nullable) void (^onVideo)(NSString *userId, BOOL isSub, BOOL available);
 @property (nonatomic, copy, nullable) void (^onScreenState)(BOOL on);
 @property (nonatomic, copy, nullable) void (^onError)(NSString *message);
+/// userId -> مستوى الصوت (0-100). صوتك أنت بالمفتاح "__me"
+@property (nonatomic, copy, nullable) void (^onVolume)(NSDictionary<NSString *, NSNumber *> *volumes);
 
 - (void)enterWithSdkAppId:(uint32_t)sdkAppId
                 secretKey:(NSString *)secretKey
@@ -22,8 +24,13 @@ NS_ASSUME_NONNULL_BEGIN
                      room:(NSString *)room;
 - (void)exitRoom;
 - (void)setMuted:(BOOL)muted;
+- (void)setSpeaker:(BOOL)speaker;
+/// كتم صوت صديق عندك أنت فقط
+- (void)muteRemote:(NSString *)userId mute:(BOOL)mute;
+/// كتم/تشغيل صوت الايباد اللي ينبث مع الشاشة
+- (void)setScreenSoundMuted:(BOOL)muted;
 
-/// quality: 0 = 720p سلس، 1 = 1080p عالي، 2 = 1080p نص واضح (إطارات أقل، جودة أعلى)
+/// quality: 0 = 720p سلس، 1 = 1080p أقصى جودة، 2 = 1080p نص واضح (إطارات أقل)
 - (void)startScreenShare:(NSInteger)quality;
 - (void)stopScreenShare;
 
