@@ -20,6 +20,17 @@ jobs:
       - name: Resolve packages
         run: xcodebuild -resolvePackageDependencies -project ScreenCast.xcodeproj -scheme ScreenCast
 
+      - name: Inspect SDK headers
+        if: always()
+        run: |
+          for f in $(find "$PWD" "$HOME/Library/Developer/Xcode/DerivedData" -name "TRTCCloudDef.h" -o -name "TXReplayKitExt.h" -o -name "TRTCCloud.h" -o -name "TRTCCloud+*.h" 2>/dev/null | sort -u); do echo "=== $f"; done
+          R="$PWD $HOME/Library/Developer/Xcode/DerivedData"
+          H=$(find $R -name "TRTCCloudDef.h" 2>/dev/null | head -1)
+          D=$(dirname "$H")
+          echo "### resolution enum"; grep -n "TRTCVideoResolution_" "$H" | head -60
+          echo "### replaykit ext"; cat "$(find $R -name TXReplayKitExt.h 2>/dev/null | head -1)" | grep -n -E "^-|^\+|@property|typedef|NS_ENUM|TXReplayKitExtReason" 
+          echo "### audio/volume/route"; grep -rn -E "enableAudioVolumeEvaluation|onUserVoiceVolume|setAudioRoute|muteRemoteAudio|muteAllRemoteAudio|startScreenCaptureByReplaykit|sendAudio|SystemAudio|setSystemVolumeType|startSystemAudio" "$D" | head -40
+
       - name: Build (unsigned)
         run: |
           set -o pipefail
