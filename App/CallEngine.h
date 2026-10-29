@@ -6,7 +6,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// غلاف بسيط فوق TRTC: دخول غرفة، مكالمة صوتية جماعية، بث الشاشة، واستقبال بث الآخرين.
 @interface CallEngine : NSObject
 
-+ (instancetype)shared;
+@property (class, nonatomic, readonly, strong) CallEngine *shared;
 
 @property (nonatomic, copy, nullable) void (^onEntered)(NSInteger result);
 @property (nonatomic, copy, nullable) void (^onUserJoined)(NSString *userId);
