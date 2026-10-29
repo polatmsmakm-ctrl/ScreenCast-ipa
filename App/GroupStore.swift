@@ -33,14 +33,14 @@ final class GroupStore: ObservableObject {
     }
 
     @discardableResult
-    func create(name: String) -> Group {
+    func create(name: String) -> ChatGroup {
         let g = ChatGroup(name: name, code: GroupStore.randomCode())
         items.insert(g, at: 0)
         return g
     }
 
     @discardableResult
-    func join(code: String, name: String) -> Group {
+    func join(code: String, name: String) -> ChatGroup {
         let c = code.trimmingCharacters(in: .whitespaces).uppercased()
         if let existing = items.first(where: { $0.code == c }) { return existing }
         let n = name.trimmingCharacters(in: .whitespaces)
