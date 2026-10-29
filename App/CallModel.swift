@@ -42,9 +42,18 @@ final class CallModel: ObservableObject {
     @Published var screenSound = true
 
     private var room: Room?
+    private var bgTask: UIBackgroundTaskIdentifier = .invalid
+    private var bgObservers: [NSObjectProtocol] = []
     private let observer = RoomObserver()
 
     init() {
+        let nc = NotificationCenter.default
+        bgObservers.append(nc.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.beginBackground() }
+        })
+        bgObservers.append(nc.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.endBackground() }
+        })
         observer.onChange = { [weak self] in
             Task { @MainActor in self?.refresh() }
         }
@@ -54,6 +63,23 @@ final class CallModel: ObservableObject {
                 self.resetState()
                 if let message = message { self.error = "انقطع الاتصال: \(message)" }
             }
+        }
+    }
+
+    // MARK: - Background
+
+    /// نخلي التطبيق شغال بالخلفية وهو يبث، وإلا iOS يوقفه ويتجمد البث
+    private func beginBackground() {
+        guard inRoom, bgTask == .invalid else { return }
+        bgTask = UIApplication.shared.beginBackgroundTask(withName: "screencast") { [weak self] in
+            self?.endBackground()
+        }
+    }
+
+    private func endBackground() {
+        if bgTask != .invalid {
+            UIApplication.shared.endBackgroundTask(bgTask)
+            bgTask = .invalid
         }
     }
 

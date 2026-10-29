@@ -3,7 +3,7 @@ import LiveKit
 
 struct CallView: View {
     @ObservedObject var model: CallModel
-    @State private var focused: String?
+    @State private var fullscreen: String?
 
     private var screens: [CallModel.Peer] {
         model.peers.filter { $0.screen != nil }
@@ -19,7 +19,13 @@ struct CallView: View {
                 peersBar
                 controls
             }
+
+            if let id = fullscreen, let p = screens.first(where: { $0.id == id }) {
+                FullscreenViewer(peer: p, model: model) { fullscreen = nil }
+                    .transition(.opacity)
+            }
         }
+        .animation(.easeInOut(duration: 0.2), value: fullscreen)
     }
 
     // MARK: - Top bar
@@ -63,21 +69,21 @@ struct CallView: View {
                 Spacer()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let f = focused, let p = screens.first(where: { $0.id == f }) {
+        } else if screens.count == 1, let p = screens.first {
             tile(p)
-                .onTapGesture { focused = nil }
+                .onTapGesture { fullscreen = p.id }
                 .padding(8)
         } else {
             GeometryReader { geo in
                 let wide = geo.size.width > geo.size.height
-                let cols = screens.count == 1 ? 1 : (wide ? 2 : 1)
+                let cols = wide ? 2 : 1
                 ScrollView {
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: cols),
                               spacing: 8) {
                         ForEach(screens) { p in
                             tile(p)
-                                .aspectRatio(16.0 / 9.0, contentMode: .fit)
-                                .onTapGesture { focused = p.id }
+                                .aspectRatio(aspect(of: p), contentMode: .fit)
+                                .onTapGesture { fullscreen = p.id }
                         }
                     }
                     .padding(8)
@@ -86,8 +92,16 @@ struct CallView: View {
         }
     }
 
+    private func aspect(of p: CallModel.Peer) -> CGFloat {
+        if let d = p.screen?.dimensions, d.width > 0, d.height > 0 {
+            return CGFloat(d.width) / CGFloat(d.height)
+        }
+        return 16.0 / 9.0
+    }
+
     private func tile(_ p: CallModel.Peer) -> some View {
         ZStack(alignment: .bottomLeading) {
+            Color.black
             if let t = p.screen {
                 SwiftUIVideoView(t, layoutMode: .fit)
                     .id(p.screenKey)
@@ -99,6 +113,14 @@ struct CallView: View {
                 .foregroundColor(.white)
                 .clipShape(Capsule())
                 .padding(8)
+            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                .font(.caption.bold())
+                .padding(8)
+                .background(Color.black.opacity(0.55))
+                .foregroundColor(.white)
+                .clipShape(Circle())
+                .padding(8)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
         }
         .cornerRadius(14)
     }
@@ -218,5 +240,100 @@ struct CallView: View {
                 .foregroundColor(.white)
                 .clipShape(Circle())
         }
+    }
+}
+
+
+/// عرض بملء الشاشة: قرصة للتكبير، ضغطتين لتغيير الملاءمة، ضغطة وحدة لإظهار/إخفاء الأزرار
+struct FullscreenViewer: View {
+    let peer: CallModel.Peer
+    @ObservedObject var model: CallModel
+    let close: () -> Void
+
+    @State private var fill = false
+    @State private var showBar = true
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            if let t = peer.screen {
+                SwiftUIVideoView(t,
+                                 layoutMode: fill ? .fill : .fit,
+                                 pinchToZoomOptions: [.zoomIn])
+                    .id("\(peer.screenKey)-\(fill)")
+                    .ignoresSafeArea()
+            }
+
+            // طبقة اللمس (الضغطات) تحت الأزرار
+            Color.clear
+                .contentShape(Rectangle())
+                .onTapGesture(count: 2) { fill.toggle() }
+                .onTapGesture { withAnimation { showBar.toggle() } }
+                .allowsHitTesting(true)
+                .ignoresSafeArea()
+                .opacity(0.001)
+
+            if showBar {
+                VStack {
+                    HStack {
+                        Button(action: close) {
+                            Image(systemName: "xmark")
+                                .font(.headline)
+                                .frame(width: 44, height: 44)
+                                .background(Color.black.opacity(0.6))
+                                .foregroundColor(.white)
+                                .clipShape(Circle())
+                        }
+                        Text(peer.name)
+                            .font(.subheadline.bold())
+                            .padding(.horizontal, 12).padding(.vertical, 6)
+                            .background(Color.black.opacity(0.6))
+                            .foregroundColor(.white)
+                            .clipShape(Capsule())
+                        Spacer()
+                        Button { fill.toggle() } label: {
+                            Image(systemName: fill ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
+                                .font(.headline)
+                                .frame(width: 44, height: 44)
+                                .background(Color.black.opacity(0.6))
+                                .foregroundColor(.white)
+                                .clipShape(Circle())
+                        }
+                    }
+                    .padding(.horizontal, 16).padding(.top, 8)
+                    Spacer()
+                    HStack(spacing: 16) {
+                        Button { model.toggleMute() } label: {
+                            Image(systemName: model.muted ? "mic.slash.fill" : "mic.fill")
+                                .font(.title3)
+                                .frame(width: 50, height: 50)
+                                .background(model.muted ? Color.red : Color.black.opacity(0.6))
+                                .foregroundColor(.white)
+                                .clipShape(Circle())
+                        }
+                        Button { model.toggleSpeaker() } label: {
+                            Image(systemName: model.speakerOn ? "speaker.wave.3.fill" : "phone.fill")
+                                .font(.title3)
+                                .frame(width: 50, height: 50)
+                                .background(Color.black.opacity(0.6))
+                                .foregroundColor(.white)
+                                .clipShape(Circle())
+                        }
+                        Button { model.leave() } label: {
+                            Image(systemName: "phone.down.fill")
+                                .font(.title3)
+                                .frame(width: 50, height: 50)
+                                .background(Color.red)
+                                .foregroundColor(.white)
+                                .clipShape(Circle())
+                        }
+                    }
+                    .padding(.bottom, 16)
+                }
+                .transition(.opacity)
+            }
+        }
+        .statusBar(hidden: !showBar)
     }
 }
