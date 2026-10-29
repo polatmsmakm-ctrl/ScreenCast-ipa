@@ -1,0 +1,86 @@
+name: ScreenCast
+options:
+  bundleIdPrefix: com.screencast
+  deploymentTarget:
+    iOS: "14.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CLANG_ENABLE_MODULES: YES
+packages:
+  TRTC:
+    url: https://github.com/Tencent-RTC/TRTC_iOS
+    branch: main
+targets:
+  ScreenCast:
+    type: application
+    platform: iOS
+    sources:
+      - App
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.screencast.app
+        SWIFT_OBJC_BRIDGING_HEADER: App/ScreenCast-Bridging-Header.h
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: NO
+    info:
+      path: Config/App-Info.plist
+      properties:
+        CFBundleDisplayName: بث
+        CFBundleShortVersionString: "1.0"
+        NSMicrophoneUsageDescription: نحتاج المايك عشان تتكلم مع أصدقائك في المكالمة
+        UIBackgroundModes: [audio]
+        UILaunchScreen: {}
+        UIApplicationSupportsIndirectInputEvents: true
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+    dependencies:
+      - package: TRTC
+        product: TRTC
+      - sdk: libz.tbd
+      - sdk: ReplayKit.framework
+      - target: BroadcastExt
+  BroadcastExt:
+    type: app-extension
+    platform: iOS
+    sources:
+      - BroadcastExt
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.screencast.app.broadcast
+        TARGETED_DEVICE_FAMILY: "1,2"
+        GENERATE_INFOPLIST_FILE: NO
+    info:
+      path: Config/Ext-Info.plist
+      properties:
+        CFBundleDisplayName: بث الشاشة
+        CFBundleShortVersionString: "1.0"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.broadcast-services-upload
+          NSExtensionPrincipalClass: SampleHandler
+          RPBroadcastProcessMode: RPBroadcastProcessModeSampleBuffer
+    dependencies:
+      - package: TRTC
+        product: TRTCReplayKitExt
+      - sdk: ReplayKit.framework
+schemes:
+  ScreenCast:
+    build:
+      targets:
+        ScreenCast: all
+        BroadcastExt: all
+    run:
+      config: Debug
+    archive:
+      config: Release
